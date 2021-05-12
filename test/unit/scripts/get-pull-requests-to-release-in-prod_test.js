@@ -2,7 +2,14 @@ const { expect } = require('chai');
 const sinon = require('sinon');
 const github = require('../../../common/services/github');
 
-const { displayPullRequest, filterPullRequest, getHeadOfChangelog, orderPr, getLastMEPDate } = require('../../../scripts/get-pull-requests-to-release-in-prod');
+const {
+  displayPullRequest,
+  filterPullRequest,
+  generateChangeLogContent,
+  getHeadOfChangelog,
+  getLastMEPDate,
+  orderPr,
+} = require('../../../scripts/get-pull-requests-to-release-in-prod');
 
 describe('Unit | Script | GET Pull Request to release in Prod', () => {
 
@@ -87,11 +94,11 @@ describe('Unit | Script | GET Pull Request to release in Prod', () => {
     it('should order PR by type', () => {
       // given
       const pullRequests = [
-        { title: '[BUGFIX] TEST' },
-        { title: '[QUICK WIN] TEST' },
-        { title: 'TEST' },
-        { title: '[FEATURE] TEST' },
-        { title: '[TECH] TEST' },
+        {title: '[BUGFIX] TEST'},
+        {title: '[QUICK WIN] TEST'},
+        {title: 'TEST'},
+        {title: '[FEATURE] TEST'},
+        {title: '[TECH] TEST'},
       ];
       // when
       const result = orderPr(pullRequests);
@@ -115,7 +122,7 @@ describe('Unit | Script | GET Pull Request to release in Prod', () => {
 
       sinon.stub(github, 'getCommitAtURL')
         .withArgs(`https://api.github.com/repos/${repoOwner}/${repoName}/commits/4c3ad3d377c37023e835ad674578cf06fcb4de7a`)
-        .resolves({ committer: { date: '2019-01-18T15:29:51Z' } });
+        .resolves({committer: {date: '2019-01-18T15:29:51Z'}});
     });
 
     it('should return the date of the last MEP commit', async () => {
@@ -128,4 +135,75 @@ describe('Unit | Script | GET Pull Request to release in Prod', () => {
     });
   });
 
+  describe('#generateChangeLogContent', () => {
+
+    context('when changelog does not exist', () => {
+
+      it('should create it ', () => {
+        // given
+        const currentChangelogContent = [];
+        const changes = [
+          '## v3.55.0 (12/05/2021)',
+          '',
+          '- [#2950](https://github.com/1024pix/pix/pull/2950) [FEATURE] Afficher les CGUs suivant la langue de l\'utilisateur dans Pix Orga (PIX-2354).',
+          '- [#2988](https://github.com/1024pix/pix/pull/2988) [FEATURE] Ré-afficher les colonnes supprimées suite à l\'ajout de l\'index en base de donnée (PIX-2552).',
+        ];
+        const expectedChangelog = [
+          '# PIX Changelog\n',
+          '\n',
+          '## v3.55.0 (12/05/2021)',
+          '',
+          '- [#2950](https://github.com/1024pix/pix/pull/2950) [FEATURE] Afficher les CGUs suivant la langue de l\'utilisateur dans Pix Orga (PIX-2354).',
+          '- [#2988](https://github.com/1024pix/pix/pull/2988) [FEATURE] Ré-afficher les colonnes supprimées suite à l\'ajout de l\'index en base de donnée (PIX-2552).',
+        ];
+
+        // when
+        const changeLogContent = generateChangeLogContent({ currentChangelogContent, changes });
+
+        // then
+        expect(changeLogContent).to.deep.equal(expectedChangelog);
+      });
+    });
+
+    context('when changelog exists', () => {
+
+      it('should update it ', () => {
+        // given
+        const currentChangelogContent = [
+          '# PIX Changelog',
+          '',
+          '## v3.54.0 (11/05/2021)',
+          '',
+          '- [#2971](https://github.com/1024pix/pix/pull/2971) [FEATURE] Passer les sessions assignées comme sessions "à traiter" (PIX-2571)',
+          '- [#2972](https://github.com/1024pix/pix/pull/2972) [FEATURE] Affichage des macarons Pix+Droit sur le certificat utilisateur sur PixApp (PIX-2369)'
+        ];
+        const changes = [
+          '## v3.55.0 (12/05/2021)',
+          '',
+          '- [#2950](https://github.com/1024pix/pix/pull/2950) [FEATURE] Afficher les CGUs suivant la langue de l\'utilisateur dans Pix Orga (PIX-2354).',
+          '- [#2988](https://github.com/1024pix/pix/pull/2988) [FEATURE] Ré-afficher les colonnes supprimées suite à l\'ajout de l\'index en base de donnée (PIX-2552).',
+          ''
+        ];
+        const expectedChangelog = [
+          '# PIX Changelog',
+          '',
+          '## v3.55.0 (12/05/2021)',
+          '',
+          '- [#2950](https://github.com/1024pix/pix/pull/2950) [FEATURE] Afficher les CGUs suivant la langue de l\'utilisateur dans Pix Orga (PIX-2354).',
+          '- [#2988](https://github.com/1024pix/pix/pull/2988) [FEATURE] Ré-afficher les colonnes supprimées suite à l\'ajout de l\'index en base de donnée (PIX-2552).',
+          '',
+          '## v3.54.0 (11/05/2021)',
+          '',
+          '- [#2971](https://github.com/1024pix/pix/pull/2971) [FEATURE] Passer les sessions assignées comme sessions "à traiter" (PIX-2571)',
+          '- [#2972](https://github.com/1024pix/pix/pull/2972) [FEATURE] Affichage des macarons Pix+Droit sur le certificat utilisateur sur PixApp (PIX-2369)'
+        ];
+
+        // when
+        const changeLogContent = generateChangeLogContent({currentChangelogContent, changes});
+
+        // then
+        expect(changeLogContent).to.deep.equal(expectedChangelog);
+      });
+    });
+  });
 });
